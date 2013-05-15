@@ -1,0 +1,120 @@
+WRITTEN BY ILYA SUTSKEVER, 2011.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+
+This is an implementation of the Hessian-Free optimizer and its
+application to RNNs. This is release A, and it only has the
+pathological problems.
+
+All of the action in this folder is in opt. cudamat,
+gnumpy, and npmat are around only for support. 
+If you have a GPU you want cudamat/ to work. If you don't have a GPU,
+or if for some reason cudamat can't figure out how to talk to it,
+npmat/ will be used instead. npmat is a cpu implementation of cudamat
+which is slow, but it can still get the job done. 
+
+The runs/ directory is our experiments store log files.
+
+Let's look into opt.
+
+opt.d: our datasets
+
+opt.hf: the implementation of the Hessian-Free optimizer.
+
+opt.m: where we store our models, currently containing opt.m.rnn.rnn
+which is direct implementation of a regular RNN. An less-documented
+opt.m.rnn.mrnn is also provided. As a bonus, we provide an
+implementation of a regular deep neural network in
+opt.m.fnn.fnn. There currently is no example code for using it, but it
+will change in future releases.
+
+opt.r: where we store our experiments. It currently has an opt.r.demo,
+which will setup a demo run on the multiplication problem with 200
+timesteps. opt.r.demo is fairly well documented, and you should
+probably read it first. Note that the 200 timesteps is a property of
+the dataset. To modify the timelags and other properties of the
+dataset, please look at opt.d.seq.pathological, where our pathological
+problems are defined. 
+
+Unfortunately our experiments, especially those with T=200, take
+a very long time, and remember that not every random seed
+succeeds. These are pathological problems after all. For sample
+failure rates, see the paper. 
+
+opt.utils: it has a number of utilities mostly related to printing,
+saving, and array concatenation. Util's most interesting module is
+opt.utils.nonlin, which implements a number of output nonlinearities. 
+
+
+To start playing with the code, you should 
+ - get cudamat to work
+ - python -c 'import opt.r.demo as d; d.hf.optimize()'
+ - wait for a very long time
+ - monitor runs/opt/r/demo/results and runs/opt/r/demo/detailed_results 
+   as the run progresses. See opt.r.demo for an explanation for what's
+   going on in the log file.
+
+After the learning is done, you could peek at the hidden states by
+calling the visualize_batch function which lives in opt.r.demo. The
+hidden states are often very cool looking. To get them, you should
+make sure that the parameters are saved regularly (using the save_freq
+parameter); then to import opt.r.demo as r; r.hf.load();
+r.visualize_batch(...)
+
+As you make your own experiments, please create new files by modifying
+opt.r.demo; e.g., create opt.r.demo2; this way, the log, the
+parameters, and the initial conditions of every experiment will be
+saved for future reference.
+
+Eventually you'll want to apply this code to your own problems.  The
+Hessian-Free optimizer of opt.hf is pretty good, and should serve you
+well on other problems. Just be sure to initialize your RNNs (or deep
+nets) well. 
+
+
+
+
+You may want to apply RNNs (or deep nets) to problems of your own.
+For that, you'd need to create a new data_object. Look at any of the
+existing data objects (e.g.,
+opt.d.seq.util.__init__.op_cls). Understand how it works, then modify
+it so that it returns your type of data. Pay attention to the
+train_mem and test_mem dictionaries, the forget function, and to
+train_batches and test_batches. If your dataset is so large that you
+do not want to compute the gradient on the full dataset in its
+entirety, you should either have the data_object have a small
+train_batches list (and have it point to a subset of the training
+data, which is what's effectively going on with
+opt.d.seq.util.__init__.op_cls, whose "actual" dataset is infinite),
+or have a very large train_batches, but tell HF to compute the
+gradient on a small subset of the minibatches, by choosing a sensible
+value for the grad_batches parameter. See opt.hf for more information
+about this and other optional parameters of HF.
+
+You may also want to make predictions with a trained RNN. For that, 
+look at the def losses(self, batch, X): function in opt.r.demo, which
+shows how to extract predictions out of the RNN.
+
+
+
+
+
